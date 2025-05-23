@@ -1,2 +1,2 @@
-# ur-visual-servo-mujoco
-Universal Robots Visual Servoing in Sim (Mujoco) and Real (UR10e)
+# PegSense
+Universal Robots Visual Servoing in Sim (Mujoco) and Real (UR10e) for Peg-in-hole Insertion tasks.

@@ -3,3 +3,4 @@ dm-control
 gymnasium
 numpy
 scipy
+opencv-python

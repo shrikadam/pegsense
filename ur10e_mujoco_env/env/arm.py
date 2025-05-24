@@ -20,7 +20,7 @@ class Arm():
     @property
     def joints(self):
         """List of joint elements belonging to the arm."""
-        return self._joints
+        return self._joints[:6]
 
     @property
     def eef_site(self):

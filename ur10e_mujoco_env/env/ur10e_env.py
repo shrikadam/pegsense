@@ -45,8 +45,7 @@ class UR10eMjEnv(gym.Env):
         self._arm = Arm(
             xml_path= os.path.join(
                 os.path.dirname(__file__),
-                '../assets/ur10e/ur10e.xml',
-                # '../assets/ur10e_scene.xml',
+                '../assets/ur10e_eoat.xml',
             ),
             eef_site_name='eef_site',
             attachment_site_name='attachment_site'

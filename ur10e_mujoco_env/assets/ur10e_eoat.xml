@@ -121,7 +121,7 @@
         <body name="ur10e_base" quat="1 0 0 1" childclass="ur10e">
             <inertial mass="4" pos="0 0 0" diaginertia="0.0061063308908 0.0061063308908 0.01125" />
             <geom mesh="base_0" material="black" class="visual" />
-            <geom mesh="base_1" material="jointgray" class="visual" />
+            <geom mesh="base_1" material="linkgray" class="visual" />
             <body name="shoulder_link" pos="0 0 0.181">
                 <inertial mass="7.778" pos="0 0 0" diaginertia="0.0314743 0.0314743 0.0218756" />
                 <joint name="shoulder_pan_joint" axis="0 0 1" />
@@ -136,10 +136,10 @@
                         diaginertia="0.423074 0.423074 0.0363656" />
                     <joint name="shoulder_lift_joint" />
                     <site name="shoulder_lift_joint" />
-                    <geom mesh="upperarm_0" material="linkgray" class="visual" />
-                    <geom mesh="upperarm_1" material="black" class="visual" />
-                    <geom mesh="upperarm_2" material="jointgray" class="visual" />
-                    <geom mesh="upperarm_3" material="urblue" class="visual" />
+                    <geom mesh="upperarm_0" material="black" class="visual" />
+                    <geom mesh="upperarm_1" material="jointgray" class="visual" />
+                    <geom mesh="upperarm_2" material="urblue" class="visual" />
+                    <geom mesh="upperarm_3" material="linkgray" class="visual" />
                     <geom class="collision" pos="0 -0.05 0" quat="1 1 0 0" size="0.078 0.08" />
                     <geom class="collision" size="0.06 0.3" pos="0 0 0.3" />
 
@@ -149,9 +149,9 @@
                         <joint name="elbow_joint" class="joint_limited" />
                         <site name="elbow_joint" />
                         <geom mesh="forearm_0" material="urblue" class="visual" />
-                        <geom mesh="forearm_1" material="linkgray" class="visual" />
-                        <geom mesh="forearm_2" material="black" class="visual" />
-                        <geom mesh="forearm_3" material="jointgray" class="visual" />
+                        <geom mesh="forearm_1" material="black" class="visual" />
+                        <geom mesh="forearm_2" material="jointgray" class="visual" />
+                        <geom mesh="forearm_3" material="linkgray" class="visual" />
                         <geom class="collision" pos="0 0.08 0" quat="1 1 0 0" size="0.058 0.065" />
                         <geom class="collision" size="0.043 0.28" pos="0 0 0.29" />
 

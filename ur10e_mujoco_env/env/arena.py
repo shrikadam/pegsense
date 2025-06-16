@@ -18,14 +18,14 @@ class StandardArena(object):
             width=300,
             height=300,
             rgb1=[0.2, 0.3, 0.4],
-            rgb2=[0.3, 0.4, 0.5],
+            rgb2=[0.3, 0.4, 0.5]
         )
         grid = self._mjcf_model.asset.add(
             "material",
             name="grid",
             texture=chequered,
             texrepeat=[5, 5],
-            reflectance=0.2,
+            reflectance=0.2
         )
         self._mjcf_model.worldbody.add("geom", type="plane", size=[2, 2, 0.1], material=grid)
         for x in [-2, 2]:

@@ -1,0 +1,17 @@
+<mujoco model="falling_pegs_random">
+    <compiler angle="radian" inertiafromgeom="true"/>
+    <option timestep="0.002" gravity="0 0 -9.81"/>
+
+    <asset>
+        <texture name="texplane" type="2d" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 0.15 0.2" width="256" height="256"/>
+        <material name="matplane" texture="texplane" texrepeat="3 3"/> 
+    </asset>
+
+    <worldbody>
+        <light pos="0 0 3" diffuse="1.0 1.0 1.0" specular="0.5 0.5 0.5" ambient="0.3 0.3 0.3"/>
+        <geom name="floor" type="plane" size="2 2 1" material="matplane" conaffinity="1" contype="1"/>
+    </worldbody>
+
+    <actuator>
+    </actuator>
+</mujoco>

@@ -7,10 +7,9 @@ from gymnasium import spaces
 from dm_control import mjcf
 from .arena import StandardArena
 from .arm import Arm
-from .target import Target
-from .targets import Peg
+from .mocap import Mocap
 from ur10e_mujoco_env.controllers.operational_space_controller import OperationalSpaceController
-from scipy.spatial.transform import Rotation as R
+
 import numpy as np
 
 class UR10eMjEnv(gym.Env):
@@ -41,11 +40,11 @@ class UR10eMjEnv(gym.Env):
         self._arena = StandardArena()
 
         # mocap target that OSC will try to follow
-        self._target = Target(self._arena.mjcf_model)
+        self._target = Mocap(self._arena.mjcf_model)
 
         # ur5e arm
         self._arm = Arm(
-            xml_path= os.path.join(os.path.dirname(__file__), '../assets/ur10e_eoat.xml',),
+            xml_path= os.path.join(os.path.dirname(__file__), '../assets/ur10e_eoat.xml'),
             eef_site_name='eef_site',
             attachment_site_name='attachment_site'
         )
@@ -53,25 +52,7 @@ class UR10eMjEnv(gym.Env):
         self._arena.attach(
             self._arm.mjcf_model, pos=[0, 0, 0], quat=[0.7071068, 0, 0, -0.7071068]
         )
-
-        # Spawn three square and three round pegs
-        num_peg = 3
-        for i in range(num_peg):
-            peg = Peg(type='square')
-            rand_pos = [np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(0.5, 1)]
-            rand_quat = R.random().as_quat().tolist()
-            self._arena.attach_free(
-                peg.mjcf_root, pos=rand_pos, quat=rand_quat
-            )
-
-        for i in range(num_peg):
-            peg = Peg(type='round')
-            rand_pos = [np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(0.5, 1)]
-            rand_quat = R.random().as_quat().tolist()
-            self._arena.attach_free(
-                peg.mjcf_root, pos=rand_pos, quat=rand_quat
-            )
-
+        
         # generate model
         self._physics = mjcf.Physics.from_mjcf_model(self._arena.mjcf_model)
 

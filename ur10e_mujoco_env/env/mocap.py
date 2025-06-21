@@ -1,6 +1,6 @@
 import numpy as np
 
-class Target(object):
+class Mocap(object):
     """
     A class representing a pool cue with motion capture capabilities.
     """

@@ -1,7 +1,7 @@
 <mujoco model="ur10e">
     <compiler angle="radian" autolimits="true" meshdir="models"/>
-    <option timestep="0.2" gravity="0 0 -9.81" integrator="implicitfast" />
-    <option cone="elliptic" impratio="10"/>
+    <!-- <option timestep="0.2" gravity="0 0 -9.81" integrator="implicitfast" /> -->
+    <option cone="elliptic" impratio="10" integrator="implicitfast"/>
 
     <default>
         <default class="ur10e">

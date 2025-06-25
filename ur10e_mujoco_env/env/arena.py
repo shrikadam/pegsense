@@ -29,19 +29,19 @@ class StandardArena(object):
         # Ensure Holes are not placed in the immediate work envelope of the robot
         def sample_excluding_center():
             if np.random.rand() < 0.5:
-                return np.random.uniform(-1, -0.5)  # Left range
+                return np.random.uniform(-0.8, -0.5)  # Left range
             else:
-                return np.random.uniform(0.5, 1)   # Right range
+                return np.random.uniform(0.5, 0.8)   # Right range
         for i in range(num_peg):
             hole = Hole(type='square')
-            rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.2, 1)]
+            rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.2, 0.8)]
             rand_quat = R.random().as_quat().tolist()
             self.attach(
                 hole.mjcf_root, pos=rand_pos, quat=rand_quat
             )
         for i in range(num_peg):
             hole = Hole(type='round')
-            rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.2, 1)]
+            rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.2, 0.8)]
             rand_quat = R.random().as_quat().tolist()
             self.attach(
                 hole.mjcf_root, pos=rand_pos, quat=rand_quat

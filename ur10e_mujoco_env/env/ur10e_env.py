@@ -1,6 +1,7 @@
 import time
 import os
 import numpy as np
+import mujoco as mj
 import mujoco.viewer
 import gymnasium as gym
 from gymnasium import spaces
@@ -156,7 +157,7 @@ class UR10eMjEnv(gym.Env):
         if self._render_mode == "human":
             # render viewer
             self._viewer.sync()
-
+            # self._render_camera_inset()
             # TODO come up with a better frame rate keeping strategy
             time_until_next_step = self._timestep - (time.time() - self._step_start)
             if time_until_next_step > 0:
@@ -166,6 +167,32 @@ class UR10eMjEnv(gym.Env):
 
         else:  # rgb_array
             return self._physics.render()
+        
+    def _render_camera_inset(self, camera_name="ur10e/eih_camera"):
+        # Dimensions and location of the inset
+        width, height = int(0.3 * 640), int(0.3 * 480)
+        loc_x = 640 - width  # Adjust if viewer size changes
+        loc_y = 480 - height
+
+        viewport = mj.MjrRect(loc_x, loc_y, width, height)
+        camera_id = self._physics.model.camera(camera_name).id
+        offscreen_cam = mj.MjvCamera()
+        offscreen_cam.type = mj.mjtCamera.mjCAMERA_FIXED
+        offscreen_cam.fixedcamid = camera_id
+
+        # Update scene from this camera
+        mj.mjv_updateScene(
+            self._physics.model.ptr,
+            self._physics.data.ptr,
+            self._opt,
+            None,
+            offscreen_cam,
+            mj.mjtCatBit.mjCAT_ALL.value,
+            self._scene
+        )
+
+        # Draw scene to the inset viewport
+        mj.mjr_render(viewport, self._scene, self._context)
 
     def close(self) -> None:
         """

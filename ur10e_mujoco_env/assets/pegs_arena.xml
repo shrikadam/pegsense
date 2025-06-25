@@ -8,7 +8,7 @@
     </asset>
 
     <worldbody>
-        <light pos="0 0 3" diffuse="1.0 1.0 1.0" specular="0.5 0.5 0.5" ambient="0.3 0.3 0.3"/>
+         <light pos="0 0 3" dir="0 0 -1" directional='true'/>
         <geom name="floor" type="plane" size="2 2 1" material="matplane" conaffinity="1" contype="1"/>
     </worldbody>
 

@@ -60,15 +60,9 @@ class UR10eMjEnv(gym.Env):
         # set up OSC controller
         self._controller = OperationalSpaceController(
             physics=self._physics,
-            joints=self._arm.joints,
-            eef_site=self._arm.eef_site,
-            min_effort=-150.0,
-            max_effort=150.0,
-            kp=200,
-            ko=200,
-            kv=50,
-            vmax_xyz=1.0,
-            vmax_abg=2.0,
+            site_name=self._arm.eef_site,
+            joint_names=self._arm.joints,
+            actuator_names=self._arm.actuators
         )
 
         # for GUI and time keeping
@@ -99,7 +93,7 @@ class UR10eMjEnv(gym.Env):
                 0.0,
             ]
             # put target in a reasonable starting position
-            self._target.set_mocap_pose(self._physics, position=[0.5, 0, 0.3], quaternion=[0, 0, 0, 1])
+            self._target.set_mocap_pose(self._physics, position=[0.5, 0, 0.3], quaternion=[1, 0, 0, 0])
 
         observation = self._get_obs()
         info = self._get_info()
@@ -157,7 +151,6 @@ class UR10eMjEnv(gym.Env):
         if self._render_mode == "human":
             # render viewer
             self._viewer.sync()
-            # self._render_camera_inset()
             # TODO come up with a better frame rate keeping strategy
             time_until_next_step = self._timestep - (time.time() - self._step_start)
             if time_until_next_step > 0:
@@ -167,32 +160,6 @@ class UR10eMjEnv(gym.Env):
 
         else:  # rgb_array
             return self._physics.render()
-        
-    def _render_camera_inset(self, camera_name="ur10e/eih_camera"):
-        # Dimensions and location of the inset
-        width, height = int(0.3 * 640), int(0.3 * 480)
-        loc_x = 640 - width  # Adjust if viewer size changes
-        loc_y = 480 - height
-
-        viewport = mj.MjrRect(loc_x, loc_y, width, height)
-        camera_id = self._physics.model.camera(camera_name).id
-        offscreen_cam = mj.MjvCamera()
-        offscreen_cam.type = mj.mjtCamera.mjCAMERA_FIXED
-        offscreen_cam.fixedcamid = camera_id
-
-        # Update scene from this camera
-        mj.mjv_updateScene(
-            self._physics.model.ptr,
-            self._physics.data.ptr,
-            self._opt,
-            None,
-            offscreen_cam,
-            mj.mjtCatBit.mjCAT_ALL.value,
-            self._scene
-        )
-
-        # Draw scene to the inset viewport
-        mj.mjr_render(viewport, self._scene, self._context)
 
     def close(self) -> None:
         """

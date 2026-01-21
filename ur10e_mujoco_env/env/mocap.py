@@ -55,9 +55,6 @@ class Mocap(object):
             quaternion: The quaternion orientation of the mocap body.
         """
 
-        # flip quaternion xyzw to wxyz
-        quaternion = np.roll(np.array(quaternion), 1)
-
         if position is not None:
             physics.bind(self.mocap).mocap_pos[:] = position
         if quaternion is not None:
@@ -67,9 +64,6 @@ class Mocap(object):
         
         position = physics.bind(self.mocap).mocap_pos[:]
         quaternion = physics.bind(self.mocap).mocap_quat[:]
-
-        # flip quaternion wxyz to xyzw
-        quaternion = np.roll(np.array(quaternion), -1)
 
         pose = np.concatenate([position, quaternion])
 

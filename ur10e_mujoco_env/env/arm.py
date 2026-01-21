@@ -3,7 +3,7 @@ from dm_control import mjcf
 from scipy.spatial.transform import Rotation as R
 
 class Arm():
-    def __init__(self, xml_path, eef_site_name, attachment_site_name, joint_names = None, name: str = None):
+    def __init__(self, xml_path, eef_site_name, attachment_site_name, joint_names = None, actuator_names = None, name: str = None):
         self._mjcf_root = mjcf.from_path(xml_path)
         if name:
             self._mjcf_root.model = name
@@ -13,7 +13,12 @@ class Arm():
             self._joints = self.mjcf_model.find_all('joint')
         else:
             self._joints = [self._mjcf_root.find('joint', name) for name in joint_names]
-        
+
+        if actuator_names is None:
+            self._actuators = self.mjcf_model.find_all('actuator')
+        else:
+            self._actuators = [self._mjcf_root.find('actuator', name) for name in actuator_names]
+
         self._eef_site = self._mjcf_root.find('site', eef_site_name)
         self._attachment_site = self._mjcf_root.find('site', attachment_site_name)
 
@@ -26,6 +31,11 @@ class Arm():
     def eef_site(self):
         """Wrist site of the arm (attachment point for the hand)."""
         return self._eef_site
+    
+    @property
+    def actuators(self):
+        """List of actuator elements belonging to the arm."""
+        return self._actuators[:6]
 
     @property
     def mjcf_model(self):

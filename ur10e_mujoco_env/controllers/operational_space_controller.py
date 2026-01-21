@@ -1,212 +1,118 @@
+import mujoco
 import numpy as np
-from scipy.spatial.transform import Rotation as R
-from dm_control.mujoco.wrapper import mjbindings
-mjlib = mjbindings.mjlib
-from .joint_effort_controller import JointEffortController
 
-
-def task_space_inertia_matrix(M, J, threshold=1e-3):
-    """Generate the task-space inertia matrix
-    Parameters
-    ----------
-    M: np.array
-        the generalized coordinates inertia matrix
-    J: np.array
-        the task space Jacobian
-    threshold: scalar, optional (Default: 1e-3)
-        singular value threshold, if the detminant of Mx_inv is less than
-        this value then Mx is calculated using the pseudo-inverse function
-        and all singular values < threshold * .1 are set = 0
-    """
-
-    # calculate the inertia matrix in task space
-    M_inv = np.linalg.inv(M)
-    Mx_inv = np.dot(J, np.dot(M_inv, J.T))
-    if abs(np.linalg.det(Mx_inv)) >= threshold:
-        # do the linalg inverse if matrix is non-singular
-        # because it's faster and more accurate
-        Mx = np.linalg.inv(Mx_inv)
-    else:
-        # using the rcond to set singular values < thresh to 0
-        # singular values < (rcond * max(singular_values)) set to 0
-        Mx = np.linalg.pinv(Mx_inv, rcond=threshold * 0.1)
-
-    return Mx, M_inv
-
-
-def pose_error(target_pose, ee_pose) -> np.ndarray:
-    """
-    Calculate the rotational error (orientation difference) between the target and current orientation.
-
-    Parameters:
-        target_ori_mat (numpy.ndarray): The target orientation matrix.
-        current_ori_mat (numpy.ndarray): The current orientation matrix.
-
-    Returns:
-        numpy.ndarray: The rotational error in axis-angle representation.
-    """
-    target_pos = target_pose[:3]
-    target_quat = target_pose[3:]
-    ee_pos = ee_pose[:3]
-    ee_quat = ee_pose[3:]
-
-    err_pos = target_pos - ee_pos
-    err_ori = orientation_error(R.from_quat(target_quat).as_matrix(), R.from_quat(ee_quat).as_matrix())
-
-    return np.concatenate([err_pos, err_ori])
-
-
-def orientation_error(desired, current):
-    """
-    This function calculates a 3-dimensional orientation error vector for use in the
-    impedance controller. It does this by computing the delta rotation between the
-    inputs and converting that rotation to exponential coordinates (axis-angle
-    representation, where the 3d vector is axis * angle).
-    See https://en.wikipedia.org/wiki/Axis%E2%80%93angle_representation for more information.
-    Optimized function to determine orientation error from matrices
-
-    Args:
-        desired (np.array): 2d array representing target orientation matrix
-        current (np.array): 2d array representing current orientation matrix
-
-    Returns:
-        np.array: 2d array representing orientation error as a matrix
-    """
-    rc1 = current[0:3, 0]
-    rc2 = current[0:3, 1]
-    rc3 = current[0:3, 2]
-    rd1 = desired[0:3, 0]
-    rd2 = desired[0:3, 1]
-    rd3 = desired[0:3, 2]
-
-    error = 0.5 * (np.cross(rc1, rd1) + np.cross(rc2, rd2) + np.cross(rc3, rd3))
-
-    return error
-
-
-def get_site_jac(model, data, site_id):
-    """Return the Jacobian' translational component of the end-effector of
-    the corresponding site id.
-    """
-    jacp = np.zeros((3, model.nv))
-    jacr = np.zeros((3, model.nv))
-    mjlib.mj_jacSite(model, data, jacp, jacr, site_id)
-    jac = np.vstack([jacp, jacr])
-
-    return jac
-
-
-def get_fullM(model, data):
-    M = np.zeros((model.nv, model.nv))
-    mjlib.mj_fullM(model, M, data.qM)
-
-    return M
-
-
-class OperationalSpaceController(JointEffortController):
-    def __init__(
-        self,
-        physics,
-        joints,
-        eef_site,
-        min_effort: np.ndarray,
-        max_effort: np.ndarray,
-        kp: float,
-        ko: float,
-        kv: float,
-        vmax_xyz: float,
-        vmax_abg: float,
-    ) -> None:
+class OperationalSpaceController:
+    def __init__(self, physics, site_name, joint_names, actuator_names,
+                 impedance_pos=[200.0, 200.0, 200.0], 
+                 impedance_ori=[100.0, 100.0, 100.0], 
+                 damping_ratio=1.0, 
+                 k_pos=0.95, 
+                 k_ori=0.95, 
+                 integration_dt=1.0,
+                 gravity_comp=True):
         
-        super().__init__(physics, joints, min_effort, max_effort)
+        self.model = physics.model.ptr
+        self.data = physics.data.ptr
+        self.gravity_comp = gravity_comp
+        self.integration_dt = integration_dt
+        self.k_pos = k_pos
+        self.k_ori = k_ori
 
-        self._eef_site = eef_site
-        self._kp = kp
-        self._ko = ko
-        self._kv = kv
-        self._vmax_xyz = vmax_xyz
-        self._vmax_abg = vmax_abg
+        # 1. Get IDs for Site and Joints
+        self.site_id = physics.bind(site_name).element_id
+        self.dof_ids = physics.bind(joint_names).dofadr
+        self.actuator_ids = physics.bind(actuator_names).element_id.astype(int)
 
-        self._eef_id = self._physics.bind(eef_site).element_id
-        self._jnt_dof_ids = self._physics.bind(joints).dofadr
-        self._dof = len(self._jnt_dof_ids)
-
-        self._task_space_gains = np.array([self._kp] * 3 + [self._ko] * 3)
-        self._lamb = self._task_space_gains / self._kv
-        self._sat_gain_xyz = vmax_xyz / self._kp * self._kv
-        self._sat_gain_abg = vmax_abg / self._ko * self._kv
-        self._scale_xyz = vmax_xyz / self._kp * self._kv
-        self._scale_abg = vmax_abg / self._ko * self._kv
-
-    def run(self, target):
-        # target pose is a 7D vector [x, y, z, qx, qy, qz, qw]
-        target_pose = target
-
-        # Get the Jacobian matrix for the end-effector.
-        J = get_site_jac(
-            self._physics.model.ptr, 
-            self._physics.data.ptr, 
-            self._eef_id,
-        )
-        J = J[:, self._jnt_dof_ids]
-
-        # Get the mass matrix and its inverse for the controlled degrees of freedom (DOF) of the robot.
-        M_full = get_fullM(
-            self._physics.model.ptr, 
-            self._physics.data.ptr,
-        )
-        M = M_full[self._jnt_dof_ids, :][:, self._jnt_dof_ids]
-        Mx, M_inv = task_space_inertia_matrix(M, J)
-
-        # Get the joint velocities for the controlled DOF.
-        dq = self._physics.bind(self._joints).qvel
-
-        # Get the end-effector position, orientation matrix, and twist (spatial velocity).
-        ee_pos = self._physics.bind(self._eef_site).xpos
-        ee_quat = R.from_matrix(self._physics.bind(self._eef_site).xmat.reshape(3, 3)).as_quat()
-        ee_pose = np.concatenate([ee_pos, ee_quat])
-
-        # Calculate the pose error (difference between the target and current pose).
-        pose_err = pose_error(target_pose, ee_pose)
-
-        # Initialize the task space control signal (desired end-effector motion).
-        u_task = np.zeros(6)
-
-        # Calculate the task space control signal.
-        u_task += self._scale_signal_vel_limited(pose_err)
-
-        # joint space control signal
-        u = np.zeros(self._dof)
+        # 2. Compute Gains (Kp and Kd matrices)
+        # Kp = stiffness, Kd = damping
+        damping_pos = damping_ratio * 2 * np.sqrt(impedance_pos)
+        damping_ori = damping_ratio * 2 * np.sqrt(impedance_ori)
         
-        # Add the task space control signal to the joint space control signal
-        u += np.dot(J.T, np.dot(Mx, u_task))
+        self.Kp = np.concatenate([impedance_pos, impedance_ori], axis=0)
+        self.Kd = np.concatenate([damping_pos, damping_ori], axis=0)
 
-        # Add damping to joint space control signal
-        u += -self._kv * np.dot(M, dq)
+        # 3. Pre-allocate Memory (Avoids garbage collection in loop)
+        self.jac = np.zeros((6, self.model.nv))
+        self.twist = np.zeros(6)
+        self.site_quat = np.zeros(4)
+        self.site_quat_conj = np.zeros(4)
+        self.error_quat = np.zeros(4)
+        self.M_inv = np.zeros((self.model.nv, self.model.nv))
+        self.Mx = np.zeros((6, 6))
 
-        # Add gravity compensation to the target effort
-        u += self._physics.bind(self._joints).qfrc_bias
-
-        # send the target effort to the joint effort controller
-        super().run(u)
-
-    def _scale_signal_vel_limited(self, u_task: np.ndarray) -> np.ndarray:
+    def run(self, target_pose):
         """
-        Scale the control signal such that the arm isn't driven to move faster in position or orientation than the specified vmax values.
-
-        Parameters:
-            u_task (numpy.ndarray): The task space control signal.
-
-        Returns:
-            numpy.ndarray: The scaled task space control signal.
+        Calculates torque to reach target_pos (vec3) and target_quat (vec4, wxyz).
+        Returns: tau (array of torques for controlled joints)
         """
-        norm_xyz = np.linalg.norm(u_task[:3])
-        norm_abg = np.linalg.norm(u_task[3:])
-        scale = np.ones(6)
-        if norm_xyz > self._sat_gain_xyz:
-            scale[:3] *= self._scale_xyz / norm_xyz
-        if norm_abg > self._sat_gain_abg:
-            scale[3:] *= self._scale_abg / norm_abg
+        target_pos = target_pose[:3]
+        target_quat = target_pose[3:]
+        # 1. Compute Twist (Spatial Velocity Error)
+        # -----------------------------------------------------------
+        # Translational error
+        dx = target_pos - self.data.site_xpos[self.site_id]
+        self.twist[:3] = self.k_pos * dx / self.integration_dt
 
-        return self._kv * scale * self._lamb * u_task
+        # Rotational error
+        mujoco.mju_mat2Quat(self.site_quat, self.data.site_xmat[self.site_id])
+        mujoco.mju_negQuat(self.site_quat_conj, self.site_quat)
+        mujoco.mju_mulQuat(self.error_quat, target_quat, self.site_quat_conj)
+        
+        # Convert relative quaternion to angular velocity
+        mujoco.mju_quat2Vel(self.twist[3:], self.error_quat, 1.0)
+        self.twist[3:] *= self.k_ori / self.integration_dt
 
+        # 2. Compute Jacobian & Task Space Inertia (Mx)
+        # -----------------------------------------------------------
+        mujoco.mj_jacSite(self.model, self.data, self.jac[:3], self.jac[3:], self.site_id)
+        
+        # Solve M^-1 (Generalized Inertia Inverse)
+        mujoco.mj_solveM(self.model, self.data, self.M_inv, np.eye(self.model.nv))
+        
+        # Mx^-1 = J * M^-1 * J^T
+        Mx_inv = self.jac @ self.M_inv @ self.jac.T
+        
+        # Invert Mx (with singularity protection)
+        if abs(np.linalg.det(Mx_inv)) >= 1e-2:
+            self.Mx = np.linalg.inv(Mx_inv)
+        else:
+            self.Mx = np.linalg.pinv(Mx_inv, rcond=1e-2)
+
+        # 3. Compute Generalized Forces (OSC Control Law)
+        # -----------------------------------------------------------
+        # F = Mx * (Kp * twist - Kd * J * qvel)
+        # Note: We filter jac and qvel by dof_ids in the math
+        current_vel = self.jac @ self.data.qvel
+        
+        # Forces in Task Space
+        F_task = self.Mx @ (self.Kp * self.twist - self.Kd * current_vel)
+        
+        # Convert to Joint Space Torques: tau = J^T * F_task
+        tau = self.jac.T @ F_task
+        
+        # Filter for the specific joints we control
+        tau_controlled = tau[self.dof_ids]
+
+        # 4. Add Gravity Compensation
+        # -----------------------------------------------------------
+        if self.gravity_comp:
+            tau_controlled += self.data.qfrc_bias[self.dof_ids]
+
+        
+        # tau = np.clip(tau_controlled, *self.model.actuator_ctrlrange.T)
+        # self.data.ctrl[:] = tau
+        
+        # 1. Get the control limits ONLY for the arm joints
+        #    shape becomes (6, 2) instead of (Total_Actuators, 2)
+        arm_ctrl_ranges = self.model.actuator_ctrlrange[self.actuator_ids]
+
+        # 2. Extract min and max columns
+        arm_min = arm_ctrl_ranges[:, 0]
+        arm_max = arm_ctrl_ranges[:, 1]
+
+        # 3. Clip the calculated torque against these specific limits
+        tau_clipped = np.clip(tau_controlled, arm_min, arm_max)
+
+        # 4. Write ONLY to the arm actuators in the global data array
+        #    This leaves the gripper (index 6) untouched by this controller
+        self.data.ctrl[self.actuator_ids] = tau_clipped

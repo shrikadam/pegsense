@@ -19,15 +19,6 @@
             <default class="joint_limited">
                 <joint range="-3.1415 3.1415" />
             </default>
-            <default class="position">
-                <position ctrlrange="-6.2831 6.2831" kp="2000" kv="200" forcerange="-150 150" />
-                <default class="position_limited">
-                    <position ctrlrange="-3.1415 3.1415" />
-                </default>
-                <default class="position_small">
-                    <position kp="500" kv="50" forcerange="-28 28" />
-                </default>
-            </default>
             <site size="0.001" rgba="0.5 0.5 0.5 0.3" group="4" />
         </default>
         <default class="2f85">
@@ -415,12 +406,12 @@
     </equality>
 
     <actuator>
-        <!-- <position class="position" name="shoulder_pan_position" joint="shoulder_pan_joint" />
-        <position class="position" name="shoulder_lift_position" joint="shoulder_lift_joint" />
-        <position class="position_limited" name="elbow_position" joint="elbow_joint" />
-        <position class="position_small" name="wrist_1_position" joint="wrist_1_joint" />
-        <position class="position_small" name="wrist_2_position" joint="wrist_2_joint" />
-        <position class="position_small" name="wrist_3_position" joint="wrist_3_joint" /> -->
+        <motor name="shoulder_pan" joint="shoulder_pan_joint" gear="1" ctrlrange="-150 150"/>
+        <motor name="shoulder_lift" joint="shoulder_lift_joint" gear="1" ctrlrange="-150 150"/>
+        <motor name="elbow" joint="elbow_joint" gear="1" ctrlrange="-150 150"/>
+        <motor name="wrist_1" joint="wrist_1_joint" gear="1" ctrlrange="-28 28"/>
+        <motor name="wrist_2" joint="wrist_2_joint" gear="1" ctrlrange="-28 28"/>
+        <motor name="wrist_3" joint="wrist_3_joint" gear="1" ctrlrange="-28 28"/>
         <general class="2f85" name="fingers_actuator" tendon="split" forcerange="-5 5"
             ctrlrange="0 1" gainprm="80 0 0"
             biasprm="0 -100 -10" />

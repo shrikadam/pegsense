@@ -1,0 +1,51 @@
+Metadata-Version: 2.4
+Name: dm_control
+Version: 1.0.36
+Summary: Continuous control environments and MuJoCo Python bindings.
+Home-page: https://github.com/google-deepmind/dm_control
+Author: DeepMind
+Author-email: mujoco@deepmind.com
+License: Apache-2.0
+Keywords: machine learning control physics MuJoCo AI
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+License-File: AUTHORS
+Requires-Dist: absl-py>=0.7.0
+Requires-Dist: dm-env
+Requires-Dist: dm-tree!=0.1.2
+Requires-Dist: glfw
+Requires-Dist: labmaze
+Requires-Dist: lxml
+Requires-Dist: mujoco>=3.4.0
+Requires-Dist: numpy>=1.9.0
+Requires-Dist: protobuf>=3.19.4
+Requires-Dist: pyopengl>=3.1.4
+Requires-Dist: pyparsing>=3.0.0
+Requires-Dist: requests
+Requires-Dist: setuptools!=50.0.0
+Requires-Dist: scipy
+Requires-Dist: tqdm
+Provides-Extra: hdf5
+Requires-Dist: h5py; extra == "hdf5"
+Dynamic: author
+Dynamic: author-email
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+
+# `dm_control`: DeepMind Infrastructure for Physics-Based Simulation.
+
+DeepMind's software stack for physics-based simulation and Reinforcement
+Learning environments, using MuJoCo physics.
+
+An **introductory tutorial** for this package is available as a Colaboratory
+notebook: [Open In Google Colab](https://colab.research.google.com/github/google-deepmind/dm_control/blob/main/tutorial.ipynb).

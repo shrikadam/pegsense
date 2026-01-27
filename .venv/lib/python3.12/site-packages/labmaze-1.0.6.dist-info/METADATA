@@ -1,0 +1,12 @@
+Metadata-Version: 2.1
+Name: labmaze
+Version: 1.0.6
+Summary: LabMaze: DeepMind Lab's text maze generator.
+Author: DeepMind
+License: Apache 2.0
+License-File: LICENSE
+License-File: AUTHORS
+Requires-Dist: absl-py
+Requires-Dist: numpy >=1.8.0
+Requires-Dist: setuptools !=50.0.0
+

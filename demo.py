@@ -16,6 +16,10 @@ while True:
     # Take a step in the environment using the chosen action
     observation, reward, terminated, truncated, info = env.step(action)
 
+    if env.unwrapped._viewer is not None and not env.unwrapped._viewer.is_running():
+        print("Viewer closed. Exiting...")
+        break
+
     # Check if the episode is over (terminated) or max steps reached (truncated)
     if terminated or truncated:
         # If the episode ends or is truncated, reset the environment

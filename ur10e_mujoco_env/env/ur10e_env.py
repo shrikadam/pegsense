@@ -143,6 +143,8 @@ class UR10eMjEnv(gym.Env):
             self._viewer = mujoco.viewer.launch_passive(
                 self._physics.model.ptr,
                 self._physics.data.ptr,
+                show_left_ui=False,
+                show_right_ui=False,
             )
         if self._step_start is None and self._render_mode == "human":
             # initialize step timer

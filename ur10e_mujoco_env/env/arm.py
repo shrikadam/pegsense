@@ -1,6 +1,6 @@
 import numpy as np
 from dm_control import mjcf
-from scipy.spatial.transform import Rotation as R
+import mujoco
 
 class Arm():
     def __init__(self, xml_path, eef_site_name, attachment_site_name, joint_names = None, actuator_names = None, name: str = None):
@@ -50,6 +50,7 @@ class Arm():
     
     def get_eef_pose(self, physics):
         ee_pos = physics.bind(self._eef_site).xpos
-        ee_quat = R.from_matrix(physics.bind(self._eef_site).xmat.reshape(3, 3)).as_quat()
+        ee_quat = np.zeros(4)
+        mujoco.mju_mat2Quat(ee_quat, physics.bind(self._eef_site).xmat)
         ee_pose = np.concatenate((ee_pos, ee_quat))
         return ee_pose

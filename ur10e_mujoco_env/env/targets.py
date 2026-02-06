@@ -34,7 +34,7 @@ class Hole(object):
         self._mjcf_root = mjcf.RootElement()
         self.hole_body = self._mjcf_root.worldbody.add("body", name="hole")
         if type == 'square':
-            stl_path = os.path.join(os.path.dirname(__file__), '../assets/models/square_hole.stl')
+            stl_path = os.path.join(os.path.dirname(__file__), '../assets/pegs_holes/square_hole.stl')
             mesh = self._mjcf_root.asset.add('mesh', name='square_hole', file=stl_path, scale=[0.001, 0.001, 0.001])
             self.hole_body.add(
                 "geom",
@@ -44,7 +44,7 @@ class Hole(object):
                 rgba=[1, 1, 0, 1]
             )
         elif type == 'round':
-            stl_path = os.path.join(os.path.dirname(__file__), '../assets/models/round_hole.stl')
+            stl_path = os.path.join(os.path.dirname(__file__), '../assets/pegs_holes/round_hole.stl')
             mesh = self._mjcf_root.asset.add('mesh', name='round_hole', file=stl_path, scale=[0.001, 0.001, 0.001])
             self.hole_body.add(
                 "geom",

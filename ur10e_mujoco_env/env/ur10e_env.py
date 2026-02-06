@@ -43,16 +43,25 @@ class UR10eMjEnv(gym.Env):
         # mocap target that OSC will try to follow
         self._target = Mocap(self._arena.mjcf_model)
 
-        # ur5e arm
+        assets_dir = os.path.join(os.path.dirname(__file__), '../assets')
+        arm_xml_path = os.path.join(assets_dir, 'universal_robots_ur10e/ur10e.xml')
+        gripper_xml_path = os.path.join(assets_dir, 'robotiq_2f85_v4/mjx_2f85.xml')
+
+        # ur10e arm
         self._arm = Arm(
-            xml_path= os.path.join(os.path.dirname(__file__), '../assets/ur10e_eoat.xml'),
-            eef_site_name='eef_site',
+            xml_path= arm_xml_path,
             attachment_site_name='attachment_site'
         )
+        gripper = mjcf.from_path(gripper_xml_path)
+        gripper_frame = self._arm.attach_tool(gripper, pos=[0, 0, 0], quat=[0, 1, 0, 0], update_tcp=True, tool_tcp_name="pinch_site")
         # attach arm to arena
         self._arena.attach(
             self._arm.mjcf_model, pos=[0, 0, 0], quat=[0.7071068, 0, 0, -0.7071068]
         )
+
+        #DEBUG
+        # self._arm.mjcf_model.visual.scale.framelength = 0.2  # Default is often 1.0 (meters)
+        # self._arm.mjcf_model.visual.scale.framewidth = 0.005 # Default is often 0.03
         
         # generate model
         self._physics = mjcf.Physics.from_mjcf_model(self._arena.mjcf_model)
@@ -60,7 +69,7 @@ class UR10eMjEnv(gym.Env):
         # set up OSC controller
         self._controller = OperationalSpaceController(
             physics=self._physics,
-            site_name=self._arm.eef_site,
+            site_name=self._arm._tcp,
             joint_names=self._arm.joints,
             actuator_names=self._arm.actuators
         )

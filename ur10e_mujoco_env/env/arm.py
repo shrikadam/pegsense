@@ -1,6 +1,5 @@
 import numpy as np
 from dm_control import mjcf
-import mujoco
 
 class Arm():
     def __init__(self, xml_path, attachment_site_name, joint_names = None, actuator_names = None, name: str = None):
@@ -60,7 +59,6 @@ class Arm():
     
     def get_tcp_pose(self, physics):
         tcp_pos = physics.bind(self._tcp).xpos
-        tcp_quat = np.zeros(4)
-        mujoco.mju_mat2Quat(tcp_quat, physics.bind(self._attachment_site).xmat)
+        tcp_quat = physics.bind(self._tcp).xquat
         tcp_pose = np.concatenate((tcp_pos, tcp_quat))
         return tcp_pose

@@ -11,7 +11,6 @@ from .arm import Arm
 from .mocap import Mocap
 from ur10e_mujoco_env.controllers.operational_space_controller import OperationalSpaceController
 
-import numpy as np
 
 class UR10eMjEnv(gym.Env):
     metadata = {
@@ -38,7 +37,7 @@ class UR10eMjEnv(gym.Env):
         ############################
         
         # checkerboard floor
-        self._arena = StandardArena()
+        self._arena = StandardArena(num_peg=1)
 
         # mocap target that OSC will try to follow
         self._target = Mocap(self._arena.mjcf_model)
@@ -111,7 +110,8 @@ class UR10eMjEnv(gym.Env):
 
     def step(self, action: np.ndarray) -> tuple:
         # TODO use the action to control the arm
-
+        gt_peg_poses = self._arena.get_peg_poses(self._physics)
+        # target_pose = pose_offset(gt_peg_poses[0], [], [])
         # get mocap target pose
         target_pose = self._target.get_mocap_pose(self._physics)
 

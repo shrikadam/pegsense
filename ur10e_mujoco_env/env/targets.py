@@ -9,7 +9,7 @@ class Peg(object):
             self.peg_body.add(
                 "geom",
                 type="box",
-                size=[0.01, 0.01, 0.05],
+                size=[0.01, 0.05, 0.01],
                 mass=0.1,
                 rgba=[0, 1, 0, 1]
             )

@@ -1,9 +1,8 @@
 import os
-from dm_control import mjcf
-from .targets import *
 import numpy as np
 import mujoco
-from scipy.spatial.transform import Rotation as R
+from dm_control import mjcf
+from .targets import *
 
 class StandardArena(object):
     def __init__(self, num_peg = 3) -> None:
@@ -15,42 +14,30 @@ class StandardArena(object):
         self._pegs = []
         self._holes = []
         for i in range(num_peg):
-            peg = Peg(type='square')
-            rand_pos = [np.random.uniform(-0.8, 0.8), np.random.uniform(-0.8, 0.8), np.random.uniform(0.5, 1)]
-            rand_quat = R.random().as_quat().tolist()
+            peg = Peg()
+            rand_pos = [np.random.uniform(-0.6, 0.6), np.random.uniform(-0.6, 0.6), np.random.uniform(0.5, 1)]
+            rand_quat = np.random.randn(4)
+            rand_quat /= np.linalg.norm(rand_quat)
             self.attach_free(
                 peg.mjcf_root, pos=rand_pos, quat=rand_quat
             )
             self._pegs.append(peg)
-        # for i in range(num_peg):
-        #     peg = Peg(type='round')
-        #     rand_pos = [np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(0.5, 1)]
-        #     rand_quat = R.random().as_quat().tolist()
-        #     self.attach_free(
-        #         peg.mjcf_root, pos=rand_pos, quat=rand_quat
-        #     )
         
-        # Ensure Holes are not placed in the immediate work envelope of the robot
+        # # Ensure Holes are not placed in the immediate work envelope of the robot
         def sample_excluding_center():
             if np.random.rand() < 0.5:
-                return np.random.uniform(-0.8, -0.5)  # Left range
+                return np.random.uniform(-0.6, -0.4)  # Left range
             else:
-                return np.random.uniform(0.5, 0.8)   # Right range
+                return np.random.uniform(0.4, 0.6)   # Right range
         for i in range(num_peg):
-            hole = Hole(type='square')
-            rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.2, 0.8)]
-            rand_quat = R.random().as_quat().tolist()
+            hole = Hole()
+            rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.3, 0.6)]
+            rand_quat = np.random.randn(4)
+            rand_quat /= np.linalg.norm(rand_quat)
             self.attach(
                 hole.mjcf_root, pos=rand_pos, quat=rand_quat
             )
             self._holes.append(hole)
-        # for i in range(num_peg):
-        #     hole = Hole(type='round')
-        #     rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.2, 0.8)]
-        #     rand_quat = R.random().as_quat().tolist()
-        #     self.attach(
-        #         hole.mjcf_root, pos=rand_pos, quat=rand_quat
-        #     )
 
     def attach(self, child, pos: list = [0, 0, 0], quat: list = [1, 0, 0, 0]) -> mjcf.Element:
         """
@@ -107,5 +94,21 @@ class StandardArena(object):
             peg_pose = np.concatenate((peg_pos, peg_quat))
 
             poses.append(peg_pose)
+            
+        return poses
+    
+    def get_hole_poses(self, physics):
+        """
+        Returns a list of dictionaries containing ground truth poses for all holes.
+        """
+        poses = []
+        
+        for hole in self._holes:
+            hole_pos = physics.bind(hole.target_site).xpos
+            hole_quat = np.zeros(4)
+            mujoco.mju_mat2Quat(hole_quat, physics.bind(hole.target_site).xmat)
+            hole_pose = np.concatenate((hole_pos, hole_quat))
+
+            poses.append(hole_pose)
             
         return poses

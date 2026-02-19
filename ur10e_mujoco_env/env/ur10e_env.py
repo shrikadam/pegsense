@@ -111,6 +111,7 @@ class UR10eMjEnv(gym.Env):
     def step(self, action: np.ndarray) -> tuple:
         # TODO use the action to control the arm
         gt_peg_poses = self._arena.get_peg_poses(self._physics)
+        gt_hole_poses = self._arena.get_hole_poses(self._physics)
         # target_pose = pose_offset(gt_peg_poses[0], [], [])
         # get mocap target pose
         target_pose = self._target.get_mocap_pose(self._physics)

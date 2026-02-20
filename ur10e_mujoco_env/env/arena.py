@@ -9,8 +9,33 @@ class StandardArena(object):
         """
         Initializes the StandardArena object by creating a new MJCF model and adding a checkerboard floor and lights.
         """
-        xml_path= os.path.join(os.path.dirname(__file__), '../assets/pegs_arena.xml')
-        self._mjcf_model = mjcf.from_path(xml_path)
+        self._mjcf_model = mjcf.RootElement()
+
+        self._mjcf_model.option.timestep = 0.002
+        self._mjcf_model.option.flag.warmstart = "enable"
+
+        # TODO don't use checker floor in future
+        chequered = self._mjcf_model.asset.add(
+            "texture",
+            type="2d",
+            builtin="checker",
+            width=300,
+            height=300,
+            rgb1=[0.2, 0.3, 0.4],
+            rgb2=[0.3, 0.4, 0.5],
+        )
+        grid = self._mjcf_model.asset.add(
+            "material",
+            name="grid",
+            texture=chequered,
+            texrepeat=[5, 5],
+            reflectance=0.2,
+        )
+        self._mjcf_model.worldbody.add("geom", type="plane", size=[2, 2, 0.1], material=grid)
+        for x in [-1, 1]:
+            # TODO randomize lighting?
+            self._mjcf_model.worldbody.add("light", pos=[x, -1, 3], dir=[-x, 1, -2])
+
         self._pegs = []
         self._holes = []
 

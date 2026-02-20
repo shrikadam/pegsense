@@ -8,6 +8,8 @@ class OperationalSpaceController:
                  damping_ratio=1.0, 
                  k_pos=0.95, 
                  k_ori=0.95, 
+                 vmax_lin = 0.1,
+                 vmax_ang = 0.05,
                  integration_dt=1.0,
                  gravity_comp=True):
         
@@ -17,6 +19,8 @@ class OperationalSpaceController:
         self.integration_dt = integration_dt
         self.k_pos = k_pos
         self.k_ori = k_ori
+        self.vmax_lin = vmax_lin
+        self.vmax_ang = vmax_ang
 
         # 1. Get IDs for Site and Joints
         self.site_id = physics.bind(site_name).element_id
@@ -62,6 +66,14 @@ class OperationalSpaceController:
         mujoco.mju_quat2Vel(self.twist[3:], self.error_quat, 1.0)
         self.twist[3:] *= self.k_ori / self.integration_dt
 
+        # Cap linear vel while preserving direction and angular vel while preserving orientation
+        v_lin = np.linalg.norm(self.twist[:3])
+        if v_lin > self.vmax_lin:
+            self.twist[:3] = (self.twist[:3] / v_lin) * self.vmax_lin
+        v_ang = np.linalg.norm(self.twist[3:])
+        if v_ang > self.vmax_ang:
+            self.twist[3:] = (self.twist[3:] / v_ang) * self.vmax_ang
+
         # 2. Compute Jacobian & Task Space Inertia (Mx)
         # -----------------------------------------------------------
         mujoco.mj_jacSite(self.model, self.data, self.jac[:3], self.jac[3:], self.site_id)
@@ -93,11 +105,20 @@ class OperationalSpaceController:
         # Filter for the specific joints we control
         tau_controlled = tau[self.dof_ids]
 
+        # Joint space velocity damping
+        jvel_max = np.array([1.0, 1.0, 1.5, 2.0, 2.0, 20.0])
+        joint_vels = self.data.qvel[self.dof_ids]
+        excess_vel = np.abs(joint_vels) - jvel_max # How much is each joint exceeding the speed limit
+        excess_vel = np.maximum(0, excess_vel) # Zero if under the limit
+        j_damping_gain = np.array([50.0, 50.0, 20.0, 10.0, 10.0, 0.0])
+        damping_tau = -j_damping_gain * excess_vel * np.sign(joint_vels)
+
+        tau_controlled += damping_tau
+
         # 4. Add Gravity Compensation
         # -----------------------------------------------------------
         if self.gravity_comp:
             tau_controlled += self.data.qfrc_bias[self.dof_ids]
-
         
         # tau = np.clip(tau_controlled, *self.model.actuator_ctrlrange.T)
         # self.data.ctrl[:] = tau

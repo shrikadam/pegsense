@@ -1,4 +1,5 @@
 import numpy as np
+import mujoco
 from dm_control import mjcf
 
 class Arm():
@@ -59,6 +60,7 @@ class Arm():
     
     def get_tcp_pose(self, physics):
         tcp_pos = physics.bind(self._tcp).xpos
-        tcp_quat = physics.bind(self._tcp).xquat
+        tcp_quat = np.zeros(4)
+        mujoco.mju_mat2Quat(tcp_quat, physics.bind(self._tcp).xmat)
         tcp_pose = np.concatenate((tcp_pos, tcp_quat))
         return tcp_pose

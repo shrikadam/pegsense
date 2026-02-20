@@ -13,9 +13,16 @@ class StandardArena(object):
         self._mjcf_model = mjcf.from_path(xml_path)
         self._pegs = []
         self._holes = []
+
+        def sample_excluding_center():
+            if np.random.rand() < 0.5:
+                return np.random.uniform(-0.6, -0.4)  # Left range
+            else:
+                return np.random.uniform(0.4, 0.6)   # Right range
+            
         for i in range(num_peg):
             peg = Peg()
-            rand_pos = [np.random.uniform(-0.6, 0.6), np.random.uniform(-0.6, 0.6), np.random.uniform(0.5, 1)]
+            rand_pos = [sample_excluding_center(), sample_excluding_center(), 0.1]
             rand_quat = np.random.randn(4)
             rand_quat /= np.linalg.norm(rand_quat)
             self.attach_free(
@@ -24,11 +31,7 @@ class StandardArena(object):
             self._pegs.append(peg)
         
         # # Ensure Holes are not placed in the immediate work envelope of the robot
-        def sample_excluding_center():
-            if np.random.rand() < 0.5:
-                return np.random.uniform(-0.6, -0.4)  # Left range
-            else:
-                return np.random.uniform(0.4, 0.6)   # Right range
+       
         for i in range(num_peg):
             hole = Hole()
             rand_pos = [sample_excluding_center(), sample_excluding_center(), np.random.uniform(0.3, 0.6)]

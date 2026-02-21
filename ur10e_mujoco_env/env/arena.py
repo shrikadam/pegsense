@@ -13,6 +13,7 @@ class StandardArena(object):
 
         self._mjcf_model.option.timestep = 0.002
         self._mjcf_model.option.flag.warmstart = "enable"
+        self._mjcf_model.compiler.inertiafromgeom = "true"
 
         # TODO don't use checker floor in future
         chequered = self._mjcf_model.asset.add(

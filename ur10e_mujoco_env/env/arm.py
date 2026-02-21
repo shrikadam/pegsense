@@ -35,7 +35,7 @@ class Arm():
     @property
     def actuators(self):
         """List of actuator elements belonging to the arm."""
-        return self._actuators[:6]
+        return self._actuators
 
     @property
     def mjcf_model(self):
@@ -47,6 +47,7 @@ class Arm():
         frame = self._attachment_site.attach(child)
         frame.pos = pos
         frame.quat = quat
+        self._actuators.append(child.find_all('actuator'))
         if update_tcp:
             if tool_tcp_name is None:
                 raise ValueError("update_tcp is True, but no tool_tcp_name was provided!")

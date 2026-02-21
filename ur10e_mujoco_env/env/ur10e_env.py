@@ -140,7 +140,6 @@ class UR10eMjEnv(gym.Env):
 
         return np.concatenate((target_pos, target_quat))
 
-
     def _get_grasp_pose(self, pre_grasp_pose):
         """
         Move the gripper down to pick up the peg
@@ -148,7 +147,7 @@ class UR10eMjEnv(gym.Env):
         :param self: Description
         :param peg_pose: np.ndarray [x, y, z, w, x, y, z] of the peg in global space
         """
-        normal_dist = -0.06
+        normal_dist = -0.055
         grasp_pose = pre_grasp_pose.copy()
         local_step = np.array([0.0, 0.0, normal_dist])
         global_step = np.zeros(3)
@@ -159,21 +158,62 @@ class UR10eMjEnv(gym.Env):
 
         return grasp_pose
 
-
     def _get_pre_insert_pose(self, hole_pose):
-        pass
-
-    def _get_insert_pose(self, hole_pose):
-        pass
-
-    def _actuate_gripper(self, action):
         """
-        Controls the Robotiq 2F-85 gripper
+        Calculates pre-insert pose 10cm above the hole
         
         :param self: Description
-        :param action: Float between 0.0 (open) and 1.0 (closed)
+        :param hole_pose: np.ndarray [x, y, z, w, x, y, z] of the peg in global space
         """
-        pass
+        normal_dist = 0.1
+        hole_pos = hole_pose[:3]
+        hole_quat = hole_pose[3:]
+        
+        # Extract hole's local axes from quat
+        hole_mat = np.zeros(9)
+        mujoco.mju_quat2Mat(hole_mat, hole_quat)
+        hole_mat = hole_mat.reshape(3,3)
+
+        # Extract the face normals from local X, Y, Z unit vectors
+        hole_x = hole_mat[:, 0]
+        hole_y = hole_mat[:, 1]
+        hole_z = hole_mat[:, 2] # Longitudinal axis of the hole
+        face_normals = [hole_x, -hole_x, hole_y, -hole_y]
+
+        # Find the normal that aligns the best with global up vector
+        global_up = np.array([0, 0, 1])
+        best_normal = max(face_normals, key=lambda n: np.dot(n, global_up))
+        
+        # Calculate target pos 10cm away from hole in Z 
+        target_pos = hole_pos + (hole_z * normal_dist)
+
+        # Calculate target quat
+        tcp_y = -hole_z # TCP Y+ equals hole Z-
+        tcp_z = best_normal
+        tcp_x = np.cross(tcp_y, tcp_z)
+        target_mat = np.column_stack((tcp_x, tcp_y, tcp_z))
+        target_quat = np.zeros(4)
+        mujoco.mju_mat2Quat(target_quat, target_mat.flatten())
+
+        return np.concatenate((target_pos, target_quat))
+
+    def _get_insert_pose(self, pre_insert_pose):
+        """
+        Move the gripper sideways to insert the peg
+        
+        :param self: Description
+        :param peg_pose: np.ndarray [x, y, z, w, x, y, z] of the peg in global space
+        """
+        normal_dist = 0.09
+        insert_pose = pre_insert_pose.copy()
+        local_step = np.array([0.0, normal_dist, 0.0])
+        global_step = np.zeros(3)
+
+        mujoco.mju_rotVecQuat(global_step, local_step, insert_pose[3:])
+
+        insert_pose[:3] += global_step
+
+        return insert_pose
 
     def step(self, action: np.ndarray) -> tuple:
         # TODO use the action to control the arm
@@ -191,7 +231,7 @@ class UR10eMjEnv(gym.Env):
         pre_grasp_pose = self._get_pre_grasp_pose(peg_pose)
         grasp_pose = self._get_grasp_pose(pre_grasp_pose)
         pre_insert_pose = self._get_pre_insert_pose(hole_pose)
-        insert_pose = self._get_insert_pose(hole_pose)
+        insert_pose = self._get_insert_pose(pre_insert_pose)
 
         # # ---------------------------------------------------------
         # # 3. State Machine Logic for Scripted Sequence
@@ -220,44 +260,43 @@ class UR10eMjEnv(gym.Env):
                 self._expert_phase = 2
                 print("Reached Grasp! Closing Gripper.")
 
-        # elif self._expert_phase == 2:
-        #     # Phase 2: Close Gripper and wait a few steps for physics to settle
-        #     target_pose = grastarget_posep_pose
-        #     gripper_action = 1.0 
-        #     self._wait_counter += 1
-        #     if self._wait_counter > 50: # Wait 50 simulation steps
-        #         self._expert_phase = 3
-        #         self._wait_counter = 0
-        #         print("Gripper Closed! Moving to Pre-Insert.")
+        elif self._expert_phase == 2:
+            # Phase 2: Close Gripper and wait a few steps for physics to settle
+            target_pose = grasp_pose
+            gripper_action = 1.0
+            self._wait_counter += 1
+            if self._wait_counter > 200: # Wait 200 simulation steps
+                self._expert_phase = 3
+                self._wait_counter = 0
+                print("Gripper Closed! Moving to Pre-Insert.")
 
-        # elif self._expert_phase == 3:
-        #     # Phase 3: Lift and move to Pre-Insert (above hole)
-        #     target_pose = pre_insert_pose
-        #     gripper_action = 1.0 # Keep holding!
-        #     if is_close(target_pose, current_tcp_pose, threshold=0.015):
-        #         self._expert_phase = 4
-        #         print("Reached Pre-Insert! Inserting.")
+        elif self._expert_phase == 3:
+            # Phase 3: Lift and move to Pre-Insert (above hole)
+            target_pose = pre_insert_pose
+            gripper_action = 1.0 # Keep holding!
+            if is_close(target_pose, current_tcp_pose, threshold=0.015):
+                self._expert_phase = 4
+                print("Reached Pre-Insert! Inserting.")
 
-        # elif self._expert_phase == 4:
-        #     # Phase 4: Push down into the hole
-        #     target_pose = insert_pose
-        #     gripper_action = 1.0
-        #     if is_close(target_pose, current_tcp_pose):
-        #         self._expert_phase = 5
-        #         print("Insertion Complete!")
+        elif self._expert_phase == 4:
+            # Phase 4: Push down into the hole
+            target_pose = insert_pose
+            gripper_action = 1.0
+            if is_close(target_pose, current_tcp_pose):
+                self._expert_phase = 5
+                print("Insertion Complete!")
 
-        # elif self._expert_phase == 5:
-        #     # Phase 5: Done, just hold it there
-        #     target_pose = insert_pose
-        #     gripper_action = 1.0
+        elif self._expert_phase == 5:
+            # Phase 5: Done, just hold it there
+            target_pose = insert_pose
+            gripper_action = 0.0
 
+        # Mocap mode
         # target_pose = self._target.get_mocap_pose(self._physics)
+        # gripper_action = 0
 
         # Run OSC controller to move to target pose
-        self._controller.run(target_pose)
-
-        # Actuate the gripper
-        self._actuate_gripper(gripper_action)
+        self._controller.run(target_pose, gripper_action)
 
         # Step physics
         self._physics.step()

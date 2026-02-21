@@ -5,11 +5,11 @@ class OperationalSpaceController:
     def __init__(self, physics, site_name, joint_names, actuator_names,
                  impedance_pos=[200.0, 200.0, 200.0], 
                  impedance_ori=[100.0, 100.0, 100.0], 
-                 damping_ratio=1.0, 
+                 damping_ratio=2.0, 
                  k_pos=0.95, 
                  k_ori=0.95, 
-                 vmax_lin = 0.1,
-                 vmax_ang = 0.05,
+                 vmax_lin = 0.2,
+                 vmax_ang = 0.2,
                  integration_dt=1.0,
                  gravity_comp=True):
         
@@ -25,7 +25,8 @@ class OperationalSpaceController:
         # 1. Get IDs for Site and Joints
         self.site_id = physics.bind(site_name).element_id
         self.dof_ids = physics.bind(joint_names).dofadr
-        self.actuator_ids = physics.bind(actuator_names).element_id.astype(int)
+        self.motor_ids = physics.bind(actuator_names[:6]).element_id.astype(int)
+        self.gripper_id = physics.bind(actuator_names[6]).element_id.astype(int)
 
         # 2. Compute Gains (Kp and Kd matrices)
         # Kp = stiffness, Kd = damping
@@ -44,7 +45,7 @@ class OperationalSpaceController:
         self.M_inv = np.zeros((self.model.nv, self.model.nv))
         self.Mx = np.zeros((6, 6))
 
-    def run(self, target_pose):
+    def run(self, target_pose, gripper_action=0.0):
         """
         Calculates torque to reach target_pos (vec3) and target_quat (vec4, wxyz).
         Returns: tau (array of torques for controlled joints)
@@ -105,27 +106,14 @@ class OperationalSpaceController:
         # Filter for the specific joints we control
         tau_controlled = tau[self.dof_ids]
 
-        # Joint space velocity damping
-        jvel_max = np.array([1.0, 1.0, 1.5, 2.0, 2.0, 20.0])
-        joint_vels = self.data.qvel[self.dof_ids]
-        excess_vel = np.abs(joint_vels) - jvel_max # How much is each joint exceeding the speed limit
-        excess_vel = np.maximum(0, excess_vel) # Zero if under the limit
-        j_damping_gain = np.array([50.0, 50.0, 20.0, 10.0, 10.0, 0.0])
-        damping_tau = -j_damping_gain * excess_vel * np.sign(joint_vels)
-
-        tau_controlled += damping_tau
-
         # 4. Add Gravity Compensation
         # -----------------------------------------------------------
         if self.gravity_comp:
             tau_controlled += self.data.qfrc_bias[self.dof_ids]
         
-        # tau = np.clip(tau_controlled, *self.model.actuator_ctrlrange.T)
-        # self.data.ctrl[:] = tau
-        
         # 1. Get the control limits ONLY for the arm joints
         #    shape becomes (6, 2) instead of (Total_Actuators, 2)
-        arm_ctrl_ranges = self.model.actuator_ctrlrange[self.actuator_ids]
+        arm_ctrl_ranges = self.model.actuator_ctrlrange[self.motor_ids]
 
         # 2. Extract min and max columns
         arm_min = arm_ctrl_ranges[:, 0]
@@ -136,4 +124,9 @@ class OperationalSpaceController:
 
         # 4. Write ONLY to the arm actuators in the global data array
         #    This leaves the gripper (index 6) untouched by this controller
-        self.data.ctrl[self.actuator_ids] = tau_clipped
+        self.data.ctrl[self.motor_ids] = tau_clipped
+
+        # 5. Actuate gripper
+        gripper_ctrl_ranges = self.model.actuator_ctrlrange[self.gripper_id].flatten()
+        gripper_ctrl_value = gripper_action * gripper_ctrl_ranges[1]
+        self.data.ctrl[self.gripper_id] = gripper_ctrl_value
